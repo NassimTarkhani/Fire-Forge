@@ -23,7 +23,7 @@ Added automatic variable extraction to Postman collection to make API key creati
 ### Option 2: Manual
 1. **Create or List Users** - Get a user ID
 2. **Set Variable** - Manually set the `{{user_id}}` variable in Postman:
-   - Click "Collections" > "Firecrawl API Gateway" > "Variables" tab
+   - Click "Collections" > "FireForge" > "Variables" tab
    - Find the `user_id` row
    - Paste the user ID in the "Current Value" column
    - Click "Save"
@@ -69,5 +69,5 @@ When requests succeed, you'll see in the Postman Console:
 ```
 ✓ Saved user_id: f6ce58b6-2610-4e7f-9dc0-1b803524f051
 ✓ Saved api_key_id: 1d36b681-d201-4668-a7ac-ba466e20c2bf
-✓ Saved user_api_key: fc_9a8c46c9438dd73e2de7cd4d3d63c6ab...
+✓ Saved user_api_key: fg_9a8c46c9438dd73e2de7cd4d3d63c6ab...
 ```
