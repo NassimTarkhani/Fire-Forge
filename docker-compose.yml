@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  fireforge-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fireforge-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Supabase Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Firecrawl Configuration
+      - FIRECRAWL_BASE_URL=${FIRECRAWL_BASE_URL}
+      - FIRECRAWL_TIMEOUT=${FIRECRAWL_TIMEOUT:-300}
+      
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      
+      # Polar Payment Configuration
+      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
+      - POLAR_ORGANIZATION_ID=${POLAR_ORGANIZATION_ID}
+      
+      # Admin Configuration
+      - ADMIN_MASTER_KEY=${ADMIN_MASTER_KEY}
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    networks:
+      - fireforge-network
+    
+    # Optional: Mount logs directory
+    volumes:
+      - ./logs:/app/logs
+
+networks:
+  fireforge-network:
+    driver: bridge
+
+# Optional: If you want to add a reverse proxy like Traefik or Nginx
+# Uncomment and configure as needed:
+#
+# nginx:
+#   image: nginx:alpine
+#   container_name: fireforge-nginx
+#   restart: unless-stopped
+#   ports:
+#     - "80:80"
+#     - "443:443"
+#   volumes:
+#     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+#     - ./ssl:/etc/nginx/ssl:ro
+#   depends_on:
+#     - fireforge-api
+#   networks:
+#     - fireforge-network

@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Tests
+test_*.py
+check_*.py
+Tests/
+tests/
+*.test.py
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+.pytest_cache/
+.coverage
+.hypothesis/
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# VPS diagnostic files
+VPS_DIAGNOSTIC.txt
+POLAR_PRODUCT_SETUP.md
+POLAR_INTEGRATION.md
+API_TESTING_GUIDE.md
+
+# Postman
+*.postman_collection.json
+*.postman_environment.json
