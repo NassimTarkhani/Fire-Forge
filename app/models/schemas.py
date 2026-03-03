@@ -124,3 +124,49 @@ class ErrorResponse(BaseModel):
     success: bool = False
     error: str
     detail: Optional[str] = None
+
+
+# Payment Schemas
+class PaymentResponse(BaseModel):
+    """Payment record from database."""
+    id: UUID
+    user_id: Optional[UUID]
+    polar_payment_id: str
+    polar_subscription_id: Optional[str]
+    amount: int
+    currency: str
+    credits_granted: int
+    status: str
+    payment_method: Optional[str]
+    customer_email: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaymentCreate(BaseModel):
+    """Create payment record."""
+    user_id: Optional[UUID] = None
+    polar_payment_id: str
+    polar_subscription_id: Optional[str] = None
+    amount: int
+    currency: str = "USD"
+    credits_granted: int
+    status: str = "pending"
+    payment_method: Optional[str] = None
+    customer_email: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class PaymentFilter(BaseModel):
+    """Filter for querying payments."""
+    user_id: Optional[UUID] = None
+    status: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    limit: int = Field(default=100, le=1000)
+
+
+class PolarWebhookEvent(BaseModel):
+    """Polar webhook event payload."""
+    type: str
+    data: dict

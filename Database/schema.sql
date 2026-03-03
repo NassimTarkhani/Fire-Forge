@@ -52,6 +52,23 @@ CREATE TABLE usage_logs (
     created_at timestamptz DEFAULT now()
 );
 
+-- Payments Table (for Polar payments)
+CREATE TABLE payments (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    polar_payment_id text UNIQUE NOT NULL,
+    polar_subscription_id text,
+    amount int NOT NULL,
+    currency text DEFAULT 'USD',
+    credits_granted int NOT NULL,
+    status text NOT NULL,  -- 'pending', 'completed', 'failed', 'refunded'
+    payment_method text,
+    customer_email text,
+    metadata jsonb,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_prefix ON api_keys(key_prefix);
@@ -61,6 +78,10 @@ CREATE INDEX idx_usage_logs_user_id ON usage_logs(user_id);
 CREATE INDEX idx_usage_logs_api_key_id ON usage_logs(api_key_id);
 CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 CREATE INDEX idx_usage_logs_endpoint ON usage_logs(endpoint);
+CREATE INDEX idx_payments_user_id ON payments(user_id);
+CREATE INDEX idx_payments_polar_payment_id ON payments(polar_payment_id);
+CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX idx_payments_created_at ON payments(created_at);
 
 -- Optional: Insert default endpoint pricing
 INSERT INTO endpoint_pricing (endpoint, cost) VALUES

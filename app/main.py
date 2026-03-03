@@ -12,8 +12,9 @@ from app.config import get_settings
 from app.services.supabase_service import SupabaseService
 from app.services.credit_service import CreditService
 from app.services.firecrawl_proxy import FirecrawlProxy
+from app.services.polar_service import PolarService
 from app.utils.rate_limiter import get_rate_limiter
-from app.routers import admin, firecrawl
+from app.routers import admin, firecrawl, polar
 
 # Configure logging
 logging.basicConfig(
@@ -54,11 +55,18 @@ async def lifespan(app: FastAPI):
         settings.rate_limit_window
     )
     
+    logger.info("Initializing Polar payment service...")
+    polar_service = PolarService(
+        supabase,
+        settings.polar_webhook_secret
+    )
+    
     # Store in app state
     app.state.supabase = supabase
     app.state.credit_service = credit_service
     app.state.firecrawl_proxy = firecrawl_proxy
     app.state.rate_limiter = rate_limiter
+    app.state.polar_service = polar_service
     
     logger.info("FireForge started successfully!")
     
@@ -108,6 +116,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(admin.router)
 app.include_router(firecrawl.router)
+app.include_router(polar.router)
 
 
 # Health check endpoint

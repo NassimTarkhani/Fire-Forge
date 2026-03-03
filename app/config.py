@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Admin
     admin_master_key: str  # Master key for admin operations
     
+    # Polar Payments
+    polar_access_token: str = ""
+    polar_webhook_secret: str = ""
+    polar_organization_id: str = ""
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
