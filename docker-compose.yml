@@ -1,0 +1,79 @@
+services:
+  fireforge-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fireforge-api
+    restart: unless-stopped
+    
+    # Allow container to reach host machine
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    # Ports removed - Traefik handles external access
+    environment:
+      # Supabase Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Firecrawl Configuration
+      # Use host.docker.internal to reach services on the host machine
+      - FIRECRAWL_BASE_URL=http://host.docker.internal:3002
+      - FIRECRAWL_TIMEOUT=${FIRECRAWL_TIMEOUT:-300}
+      
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      
+      # Polar Payment Configuration
+      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
+      - POLAR_ORGANIZATION_ID=${POLAR_ORGANIZATION_ID}
+      
+      # Admin Configuration
+      - ADMIN_MASTER_KEY=${ADMIN_MASTER_KEY}
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    networks:
+      - coolify
+    
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      
+      # HTTP Router (will redirect to HTTPS)
+      - "traefik.http.routers.fireforge-http.rule=Host(`fireforge.kapturo.online`) && PathPrefix(`/`)"
+      - "traefik.http.routers.fireforge-http.entrypoints=http"
+      - "traefik.http.routers.fireforge-http.service=fireforge-http"
+      - "traefik.http.routers.fireforge-http.middlewares=redirect-to-https"
+      
+      # HTTPS Router
+      - "traefik.http.routers.fireforge-https.rule=Host(`fireforge.kapturo.online`) && PathPrefix(`/`)"
+      - "traefik.http.routers.fireforge-https.entrypoints=https"
+      - "traefik.http.routers.fireforge-https.service=fireforge-https"
+      - "traefik.http.routers.fireforge-https.tls=true"
+      - "traefik.http.routers.fireforge-https.tls.certresolver=letsencrypt"
+      
+      # Services - tells Traefik which port the container uses
+      - "traefik.http.services.fireforge-http.loadbalancer.server.port=8000"
+      - "traefik.http.services.fireforge-https.loadbalancer.server.port=8000"
+      
+      # Middleware - HTTP to HTTPS redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+    
+    # Optional: Mount logs directory
+    volumes:
+      - ./logs:/app/logs
+
+networks:
+  coolify:
+    external: true
+    name: coolify
