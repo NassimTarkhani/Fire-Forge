@@ -48,7 +48,7 @@ async def create_user(
             detail="User with this email already exists"
         )
     
-    user = await run_in_threadpool(supabase.create_user, user_data.email, user_data.is_admin)
+    user = await run_in_threadpool(supabase.create_user, user_data.email, user_data.name, user_data.is_admin)
     
     # Initialize credits with 0 balance
     await run_in_threadpool(supabase.initialize_credits, UUID(user["id"]), 0)
@@ -117,6 +117,7 @@ async def update_user(
         supabase.update_user,
         user_id,
         user_data.email,
+        user_data.name,
         user_data.is_admin
     )
     

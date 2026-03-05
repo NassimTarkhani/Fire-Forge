@@ -14,7 +14,7 @@ from app.services.credit_service import CreditService
 from app.services.firecrawl_proxy import FirecrawlProxy
 from app.services.polar_service import PolarService
 from app.utils.rate_limiter import get_rate_limiter
-from app.routers import admin, firecrawl, polar
+from app.routers import admin, firecrawl, polar, auth
 
 # Configure logging
 logging.basicConfig(
@@ -114,6 +114,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
+app.include_router(auth.router)  # Public auth endpoints (registration)
 app.include_router(admin.router)
 app.include_router(firecrawl.router)
 app.include_router(polar.router)

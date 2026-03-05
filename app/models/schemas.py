@@ -10,17 +10,35 @@ from uuid import UUID
 # User Schemas
 class UserCreate(BaseModel):
     email: EmailStr
+    name: Optional[str] = None
     is_admin: bool = False
+
+
+class UserRegister(BaseModel):
+    """Schema for public user registration."""
+    email: EmailStr
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class RegistrationResponse(BaseModel):
+    """Response after successful registration."""
+    user_id: UUID
+    api_key: str
+    credits: int
+    email: str
+    name: str
 
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
+    name: Optional[str] = None
     is_admin: Optional[bool] = None
 
 
 class UserResponse(BaseModel):
     id: UUID
     email: str
+    name: Optional[str] = None
     is_admin: bool
     created_at: datetime
 

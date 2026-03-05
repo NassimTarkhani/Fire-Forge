@@ -4,14 +4,17 @@ A production-ready FastAPI gateway for managing access to a self-hosted Firecraw
 
 ## Features
 
+- ✅ **Self-Service Registration** - Users can register and get 50 free credits instantly
 - ✅ **API Key Authentication** - Secure API key generation and validation
 - ✅ **Credit Management** - Per-request credit deduction with configurable endpoint pricing
 - ✅ **Usage Logging** - Track all API usage with detailed metrics
 - ✅ **Rate Limiting** - In-memory rate limiter to prevent abuse
 - ✅ **Admin Dashboard** - Complete admin API for user and credit management
 - ✅ **Firecrawl Proxy** - Full proxy support for all Firecrawl endpoints
+- ✅ **Polar Payments** - Credit purchase integration via Polar
 - ✅ **Supabase Integration** - PostgreSQL database with real schema
 - ✅ **Production Ready** - Comprehensive error handling and logging
+- ✅ **Docker Support** - Ready for containerized deployment
 
 ## Prerequisites
 
@@ -36,8 +39,10 @@ A production-ready FastAPI gateway for managing access to a self-hosted Firecraw
 │   │   └── schemas.py         # Pydantic models
 │   ├── routers/
 │   │   ├── __init__.py
+│   │   ├── auth.py            # Registration and authentication
 │   │   ├── admin.py           # Admin routes
-│   │   └── firecrawl.py       # Firecrawl proxy routes
+│   │   ├── firecrawl.py       # Firecrawl proxy routes
+│   │   └── polar.py           # Polar payment webhooks
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── supabase_service.py    # Database operations
@@ -86,6 +91,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE users (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     email text UNIQUE NOT NULL,
+    name text,
     is_admin boolean DEFAULT false,
     created_at timestamptz DEFAULT now()
 );
@@ -177,6 +183,49 @@ The API will be available at:
 - **ReDoc**: http://localhost:8000/redoc
 
 ## Usage
+
+### User Registration (Self-Service)
+
+New users can register and get started instantly with 50 free credits!
+
+```bash
+curl -X POST "http://localhost:8000/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "name": "John Doe"
+  }'
+```
+
+**Response:**
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "api_key": "fireforge_abc123def456...",
+  "credits": 50,
+  "email": "user@example.com",
+  "name": "John Doe"
+}
+```
+
+**⚠️ Important:** Save your API key immediately - it's only shown once!
+
+After registration, you can use your API key to access all Firecrawl endpoints. See [REGISTRATION.md](./REGISTRATION.md) for more details.
+
+### Using Your API Key
+
+Once you have an API key (from registration or admin), use it to access Firecrawl endpoints:
+
+```bash
+# Scrape a URL
+curl -X POST "http://localhost:8000/v1/scrape" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "formats": ["markdown"]
+  }'
+```
 
 ### Admin Operations
 
@@ -309,8 +358,11 @@ All endpoints automatically proxy to your Firecrawl instance:
 
 ### Authentication
 
+- **Public Endpoints**: `/register`, `/health` - No authentication required
+- **User Operations**: Use generated API key (starts with `fireforge_`)
+  - Obtain via self-service registration (`POST /register`)
+  - Or admin-created API keys (`POST /admin/api-keys`)
 - **Admin Operations**: Use `ADMIN_MASTER_KEY` in Authorization header
-- **User Operations**: Use generated API key (starts with `fg_`)
 
 ### Response Codes
 
@@ -352,6 +404,29 @@ All endpoints automatically proxy to your Firecrawl instance:
 | `DEBUG` | Debug mode | false |
 
 ## Production Deployment
+
+### Database Migration
+
+If upgrading from an older version, run the migration to add the `name` field:
+
+```sql
+-- Add name column to existing users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name text;
+```
+
+Or use the migration file:
+```bash
+psql $DATABASE_URL < Database/migrations/001_add_user_name.sql
+```
+
+### Docker Deployment
+
+For containerized deployment, see:
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Complete deployment guide
+- [VPS_DEPLOYMENT.md](./VPS_DEPLOYMENT.md) - VPS-specific instructions
+- [Docker/](./Docker/) - Docker configuration files
+
+Production instance: **https://fireforge.kapturo.online**
 
 ### Security Considerations
 

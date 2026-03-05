@@ -10,8 +10,17 @@ Build a modern, interactive playground/dashboard for the FireForge API - a web s
 
 ## Available API Endpoints
 
-### Health Check
+### Public Endpoints
+
+#### Health Check
 - `GET /health` - Check API status (no auth required)
+
+#### User Registration (Self-Service)
+- `POST /register` - Create a new account and get API key
+  - Body: `{ "email": "string", "name": "string" }`
+  - Returns: `{ "user_id": "uuid", "api_key": "fireforge_xxx", "credits": 50 }`
+  - **New users automatically receive 50 free credits!**
+  - API key is shown only once - save it securely
 
 ### Firecrawl Operations (Prefix: `/v1`)
 All firecrawl endpoints require `Authorization: Bearer {api_key}` header.
@@ -126,8 +135,10 @@ All admin endpoints require `Authorization: Bearer {admin_master_key}` header.
 ├── Navigation Bar (top)
 │   ├── Logo + Title
 │   ├── Navigation Links (Playground, Docs, Pricing)
+│   ├── Credits Badge ("50 credits" with icon)
+│   ├── "Sign Up" or "Get Started" button (if no key)
 │   ├── Theme Toggle (dark/light)
-│   └── User Menu (API Key, Credits, Logout)
+│   └── User Menu (API Key, Credits, Logout) (if key exists)
 │
 ├── Sidebar (left, collapsible on mobile)
 │   ├── API Endpoints (grouped)
@@ -158,12 +169,40 @@ All admin endpoints require `Authorization: Bearer {admin_master_key}` header.
 
 ## Core Features to Implement
 
-### 1. API Key Management
-- Input field to enter and save API key (stored in localStorage)
-- Visual indicator when key is set (green checkmark)
-- Option to test key validity (call /health first, then a test endpoint)
-- Clear/Remove key button
-- Admin key separate input (different color/styling)
+### 0. Hero/Welcome State (No API Key)
+When a user first visits without an API key:
+- **Hero Section**:
+  - Headline: "Test FireForge API in Seconds"
+  - Subheadline: "Get 50 free credits instantly. No credit card required."
+  - Large "Get Started Free" CTA button (opens registration dialog)
+  - Show features: "✓ 50 Free Credits", "✓ Instant Setup", "✓ Full API Access"
+- **Preview Mode**:
+  - Show the playground interface (but grayed out/disabled)
+  - Allow viewing endpoint documentation
+  - Show example requests/responses
+  - Every "Send Request" button opens registration modal
+- **Clear Value Prop**:
+  - "Web scraping & crawling made simple"
+  - Show pricing: "1 credit per page scraped"
+  - Link to Polar for buying more credits
+
+### 1. User Registration & API Key Management
+- **Registration Flow**:
+  - "Get Started" / "Sign Up" button prominently displayed
+  - Registration form: email + name fields
+  - On successful registration:
+    - Show API key in a modal (emphasize this is shown only once)
+    - Display "You've received 50 free credits!" message
+    - Provide "Copy API Key" button
+    - Store key in localStorage after user copies it
+- **Existing Users**:
+  - Input field to enter and save API key (stored in localStorage)
+  - Visual indicator when key is set (green checkmark)
+  - Option to test key validity (call /health first, then a test endpoint)
+  - Clear/Remove key button
+- **Admin Access**:
+  - Admin key separate input (different color/styling)
+  - Shows admin panel when admin key is set
 
 ### 2. Interactive API Playground
 - **Endpoint Selection**: Sidebar with all endpoints grouped by category
@@ -183,13 +222,15 @@ All admin endpoints require `Authorization: Bearer {admin_master_key}` header.
 
 ### 3. Credits & Usage Dashboard
 - Display current credits (fetch from user endpoint)
+- Show "50 Free Credits" badge for new users
 - Credit cost per operation type:
   - Scrape: 1 credit
   - Crawl: 1 credit per page
   - Map: 1 credit
   - Search: 1 credit per result
 - Usage graph (optional, nice to have)
-- "Buy Credits" CTA button linking to Polar checkout
+- "Buy More Credits" CTA button linking to Polar checkout
+- Show credit balance prominently in header
 
 ### 4. Buy Credits Flow
 - Prominent "Buy Credits" button in header
@@ -231,13 +272,15 @@ All admin endpoints require `Authorization: Bearer {admin_master_key}` header.
   - Rate limits (if any)
 
 ### 8. Getting Started Guide
-- Welcome screen on first visit
+- Welcome screen on first visit (no API key detected)
 - Step-by-step:
-  1. Get your API key (link to admin contact or buy credits)
-  2. Try a simple scrape
-  3. View your credits
-  4. Explore other endpoints
+  1. Sign up for free (get API key + 50 free credits)
+  2. Try a simple scrape (example URL provided)
+  3. View your remaining credits
+  4. Explore other endpoints (crawl, map, search)
+  5. Buy more credits when needed
 - Dismissible, can be reopened from menu
+- Show progress indicator (e.g., "Step 1 of 5")
 
 ## Example Component Structure
 
@@ -256,6 +299,10 @@ app/
 
 components/
 ├── ui/ (shadcn components)
+├── auth/
+│   ├── RegisterDialog.tsx (registration modal with 50 credits messaging)
+│   ├── WelcomeHero.tsx (landing hero for non-authenticated users)
+│   └── APIKeyInput.tsx (for existing users to enter their key)
 ├── playground/
 │   ├── Sidebar.tsx
 │   ├── EndpointSelector.tsx
@@ -325,6 +372,14 @@ export class FireForgeAPI {
     return response.json();
   }
 
+  // Public endpoints (no auth required)
+  async register(email: string, name: string) {
+    return this.request('/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, name }),
+    });
+  }
+
   // Implement methods for each endpoint
   async scrape(data: ScrapeRequest) {
     return this.request('/v1/scrape', {
@@ -379,6 +434,157 @@ export function generateCurl(endpoint: string, method: string, body?: any, apiKe
 // Similar for other languages
 ```
 
+### 4. Registration Flow Example Component
+```typescript
+// components/auth/RegisterDialog.tsx
+'use client';
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle2, Copy } from 'lucide-react';
+import { FireForgeAPI } from '@/lib/api/client';
+import { toast } from 'sonner';
+
+export function RegisterDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [credits, setCredits] = useState(0);
+
+  const handleRegister = async () => {
+    if (!email || !name) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const api = new FireForgeAPI();
+      const response = await api.register(email, name);
+      
+      setApiKey(response.api_key);
+      setCredits(response.credits);
+      setRegistered(true);
+      
+      toast.success('Account created successfully!');
+    } catch (error) {
+      toast.error('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyKey = () => {
+    navigator.clipboard.writeText(apiKey);
+    toast.success('API key copied to clipboard');
+  };
+
+  const handleSaveAndContinue = () => {
+    localStorage.setItem('fireforge_api_key', apiKey);
+    toast.success('API key saved! You can start using the API now.');
+    onOpenChange(false);
+    window.location.reload(); // Reload to update UI with new key
+  };
+
+  if (registered) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
+              Welcome to FireForge!
+            </DialogTitle>
+            <DialogDescription>
+              Your account has been created successfully.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-900">
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              🎉 You've received {credits} free credits to get started!
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Your API Key</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                ⚠️ This will only be shown once. Save it securely!
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={apiKey}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button onClick={handleCopyKey} variant="outline" size="icon">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <Button onClick={handleSaveAndContinue} className="w-full">
+              Save Key & Start Building
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Create Your Account</DialogTitle>
+          <DialogDescription>
+            Get started with 50 free credits. No credit card required.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="john@example.com"
+            />
+          </div>
+
+          <Button
+            onClick={handleRegister}
+            disabled={loading}
+            className="w-full"
+          >
+            {loading ? 'Creating Account...' : 'Get Started Free'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
 ## Nice-to-Have Features
 1. **WebSocket Support**: Real-time updates for long-running crawl jobs
 2. **Request Collections**: Save and organize favorite requests
@@ -390,10 +596,13 @@ export function generateCurl(endpoint: string, method: string, body?: any, apiKe
 8. **Export/Import**: Export requests as Postman collection
 
 ## Testing Checklist
-- [ ] API key authentication works
+- [ ] User registration works and returns API key + 50 credits
+- [ ] API key is shown only once during registration
+- [ ] API key authentication works for all protected endpoints
 - [ ] Admin key authentication works
 - [ ] All firecrawl endpoints callable
 - [ ] All admin endpoints callable (with admin key)
+- [ ] Credits deduct correctly after each operation
 - [ ] Response display handles different response types
 - [ ] Error messages are user-friendly
 - [ ] Loading states show during requests
@@ -403,6 +612,7 @@ export function generateCurl(endpoint: string, method: string, body?: any, apiKe
 - [ ] Credits display updates after operations
 - [ ] Polar checkout link works
 - [ ] Request history persists across sessions
+- [ ] "50 free credits" messaging is clear and prominent
 
 ## Development with v0.dev
 Since you mentioned using 21st.dev (assuming you meant v0.dev), you can:
@@ -423,14 +633,15 @@ Since you mentioned using 21st.dev (assuming you meant v0.dev), you can:
 ## Getting Started Steps
 1. Create Next.js app: `npx create-next-app@latest fireforge-playground --typescript --tailwind --app`
 2. Install shadcn: `npx shadcn-ui@latest init`
-3. Add required components: `npx shadcn-ui@latest add button input card tabs dialog table`
+3. Add required components: `npx shadcn-ui@latest add button input card tabs dialog table badge form label`
 4. Set up API client with TypeScript types
 5. Build core layout (header, sidebar, main content)
-6. Implement endpoint pages one by one
-7. Add admin panel
-8. Polish UI/UX and add loading states
-9. Test all features
-10. Deploy (Vercel recommended for Next.js)
+6. **Implement registration flow first** (most important for user onboarding)
+7. Implement endpoint pages one by one
+8. Add admin panel
+9. Polish UI/UX and add loading states
+10. Test all features (especially registration + 50 free credits)
+11. Deploy (Vercel recommended for Next.js)
 
 ## Final Notes
 - Focus on **developer experience** - make it easy to understand and use the API
@@ -438,6 +649,19 @@ Since you mentioned using 21st.dev (assuming you meant v0.dev), you can:
 - Make it **beautiful** - use shadcn's components effectively, good spacing, modern design
 - Ensure **performance** - lazy load components, optimize images, minimize bundle size
 - Add **helpful tooltips** - explain parameters, credit costs, response fields
+
+### Important: Self-Service Registration
+The `/register` endpoint enables self-service user registration:
+- **Endpoint**: `POST /register`
+- **Body**: `{ "email": "string", "name": "string" }`
+- **Response**: `{ "user_id": "uuid", "api_key": "fireforge_xxx", "credits": 50 }`
+- **Behavior**: 
+  - Creates new user account
+  - Automatically generates API key
+  - Grants 50 free credits
+  - Returns API key (shown only once!)
+- **UX Priority**: Make registration the primary CTA - this is the fastest path to user activation
+- **Key Messaging**: "Start with 50 free credits" should be prominent throughout the UI
 
 ---
 

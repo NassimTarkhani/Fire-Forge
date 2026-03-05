@@ -25,12 +25,14 @@ class SupabaseService:
     
     # ===== User Operations =====
     
-    def create_user(self, email: str, is_admin: bool = False) -> Dict[str, Any]:
+    def create_user(self, email: str, name: Optional[str] = None, is_admin: bool = False) -> Dict[str, Any]:
         """Create a new user."""
         data = {
             "email": email,
             "is_admin": is_admin
         }
+        if name:
+            data["name"] = name
         response = self.client.table("users").insert(data).execute()
         return response.data[0] if response.data else None
     
@@ -53,11 +55,13 @@ class SupabaseService:
         response = self.client.table("users").select("*").limit(limit).execute()
         return response.data or []
     
-    def update_user(self, user_id: UUID, email: Optional[str] = None, is_admin: Optional[bool] = None) -> Optional[Dict[str, Any]]:
+    def update_user(self, user_id: UUID, email: Optional[str] = None, name: Optional[str] = None, is_admin: Optional[bool] = None) -> Optional[Dict[str, Any]]:
         """Update user information."""
         update_data = {}
         if email is not None:
             update_data["email"] = email
+        if name is not None:
+            update_data["name"] = name
         if is_admin is not None:
             update_data["is_admin"] = is_admin
         

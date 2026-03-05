@@ -7,19 +7,28 @@
     "variable": [
         {
             "key": "base_url",
-            "value": "http://localhost:8000"
+            "value": "http://localhost:8000",
+            "type": "string"
+        },
+        {
+            "key": "production_url",
+            "value": "https://fireforge.kapturo.online",
+            "type": "string"
         },
         {
             "key": "admin_key",
-            "value": "0000"
+            "value": "0000",
+            "type": "string"
         },
         {
             "key": "user_api_key",
-            "value": ""
+            "value": "",
+            "type": "string"
         },
         {
             "key": "user_id",
-            "value": "f6ce58b6-2610-4e7f-9dc0-1b803524f051"
+            "value": "f6ce58b6-2610-4e7f-9dc0-1b803524f051",
+            "type": "string"
         },
         {
             "key": "job_id",
@@ -61,6 +70,58 @@
                         ""
                     ]
                 }
+            }
+        },
+        {
+            "name": "Register User",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                            "// Automatically save API key and user_id from registration response",
+                            "if (pm.response.code === 201) {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.api_key) {",
+                            "        pm.collectionVariables.set(\"user_api_key\", jsonData.api_key);",
+                            "        console.log(\"✓ Saved API Key: \" + jsonData.api_key);",
+                            "    }",
+                            "    if (jsonData.user_id) {",
+                            "        pm.collectionVariables.set(\"user_id\", jsonData.user_id);",
+                            "        console.log(\"✓ Saved user_id: \" + jsonData.user_id);",
+                            "    }",
+                            "    if (jsonData.credits) {",
+                            "        console.log(\"✓ Free credits granted: \" + jsonData.credits);",
+                            "    }",
+                            "    console.log(\"\\n⚡ Registration successful! You can now use the API with your key.\");",
+                            "}"
+                        ]
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/register",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "register"
+                    ]
+                },
+                "description": "Register a new user account and receive 50 free credits.\n\n**Note:** The API key is only shown once! Make sure to save it.\n\nResponse includes:\n- user_id: Your unique user ID\n- api_key: Your API key (starts with 'fireforge_')\n- credits: Number of free credits (50)\n- email: Your registered email\n- name: Your name"
             }
         },
         {
