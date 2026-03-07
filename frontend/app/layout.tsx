@@ -32,7 +32,7 @@ export default function RootLayout({
               <Navbar />
               <main className="flex-1">{children}</main>
             </div>
-            <Toaster position="top-right" richColors />
+            <Toaster position="top-right" richColors closeButton visibleToasts={4} />
           </ThemeProvider>
         </AuthProvider>
       </body>

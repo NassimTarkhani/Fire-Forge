@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { FireForgeAPI, UserApiKeyListItem } from "@/lib/api/client";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { CheckCircle2, Copy, KeyRound, Loader2, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, KeyRound, Loader2, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -16,7 +16,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function ApiKeyManagerDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-    const { authToken, apiKey, setApiKey, clearApiKey } = useAuth();
+    const { authToken, apiKey, credits, setApiKey, clearApiKey } = useAuth();
 
     const [loading, setLoading] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -24,6 +24,15 @@ export function ApiKeyManagerDialog({ open, onOpenChange }: { open: boolean; onO
 
     const [keys, setKeys] = useState<UserApiKeyListItem[]>([]);
     const [freshlyCreatedKey, setFreshlyCreatedKey] = useState<string | null>(null);
+    const checkoutUrl = process.env.NEXT_PUBLIC_POLAR_CHECKOUT_URL;
+
+    const handleRecharge = () => {
+        if (!checkoutUrl) {
+            toast.error("Buy credits link is not configured.");
+            return;
+        }
+        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+    };
 
     const activePrefix = useMemo(() => (apiKey ? apiKey.slice(0, 12) : null), [apiKey]);
 
@@ -140,6 +149,12 @@ export function ApiKeyManagerDialog({ open, onOpenChange }: { open: boolean; onO
                         Create Key
                     </Button>
                 </div>
+
+                {(credits ?? 0) <= 0 && (
+                    <Button onClick={handleRecharge} variant="outline" className="w-full border-orange-500/40 text-orange-600 hover:bg-orange-500/10">
+                        <Wallet className="mr-2 h-4 w-4" /> Recharge Credits
+                    </Button>
+                )}
 
                 <div className="rounded-md border max-h-[320px] overflow-auto">
                     {loading ? (

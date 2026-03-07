@@ -24,6 +24,7 @@ export function Navbar() {
     const hasApiKey = !!apiKey;
     const hasSession = !!authToken;
     const hasAccount = hasApiKey || hasSession;
+    const checkoutUrl = process.env.NEXT_PUBLIC_POLAR_CHECKOUT_URL;
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
     const [isApiManagerOpen, setIsApiManagerOpen] = useState(false);
 
@@ -35,6 +36,14 @@ export function Navbar() {
     const handleLogout = async () => {
         await logout();
         toast.success("Logged out successfully");
+    };
+
+    const handleBuyCredits = () => {
+        if (!checkoutUrl) {
+            toast.error("Buy credits link is not configured.");
+            return;
+        }
+        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
     };
 
     return (
@@ -82,11 +91,11 @@ export function Navbar() {
                                 </Badge>
                             )}
 
-                            <Link href={process.env.NEXT_PUBLIC_POLAR_CHECKOUT_URL || "#"} target="_blank">
-                                <Button size="sm" variant="outline" className="hidden sm:flex">
+                            {hasSession && (
+                                <Button size="sm" variant="outline" className="hidden sm:flex" onClick={handleBuyCredits}>
                                     Buy Credits
                                 </Button>
-                            </Link>
+                            )}
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

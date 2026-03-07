@@ -21,6 +21,7 @@ interface AuthContextType {
     userId: string | null;
     setUserId: (id: string | null) => void;
     isAdmin: boolean;
+    setIsAdmin: (isAdmin: boolean) => void;
     pricing: Record<string, number>;
     clearApiKey: () => void;
     logout: () => Promise<void>;
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== "undefined") {
             localStorage.removeItem(STORAGE_KEYS.API_KEY);
             localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+            localStorage.removeItem(STORAGE_KEYS.IS_ADMIN);
             localStorage.removeItem(STORAGE_KEYS.USER_ID);
             localStorage.removeItem(STORAGE_KEYS.CREDITS);
         }
@@ -86,12 +88,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
         const storedAuthToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
         const storedAdminKey = localStorage.getItem(STORAGE_KEYS.ADMIN_KEY);
+        const storedIsAdmin = localStorage.getItem(STORAGE_KEYS.IS_ADMIN);
         const storedUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
         const storedCredits = localStorage.getItem(STORAGE_KEYS.CREDITS);
 
         if (storedApiKey) setApiKey(storedApiKey);
         if (storedAuthToken) setAuthToken(storedAuthToken);
         if (storedAdminKey) setAdminKey(storedAdminKey);
+        if (storedIsAdmin === "true") setIsAdmin(true);
         if (storedUserId) setUserId(storedUserId);
         if (storedCredits !== null && storedCredits !== "") {
             const parsed = Number(storedCredits);
@@ -120,6 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (typeof window === "undefined") return;
+        localStorage.setItem(STORAGE_KEYS.IS_ADMIN, String(isAdmin));
+    }, [isAdmin]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
         if (userId) localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
         else localStorage.removeItem(STORAGE_KEYS.USER_ID);
     }, [userId]);
@@ -131,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [credits]);
 
     const refreshCredits = useCallback(async () => {
-        if (!userId) return;
+        if (!userId || !supabase) return;
 
         try {
             const { data, error } = await supabase
@@ -150,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     const fetchUserStatus = useCallback(async () => {
-        if (!userId) return;
+        if (!userId || !supabase) return;
 
         try {
             const { data, error } = await supabase
@@ -169,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     const fetchPricing = useCallback(async () => {
+        if (!supabase) return;
         try {
             const { data, error } = await supabase
                 .from("endpoint_pricing")
@@ -202,12 +212,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [fetchPricing]);
 
     useEffect(() => {
-        if (userId) {
+        if (userId && supabase) {
+            const sb = supabase;
             refreshCredits();
             fetchUserStatus();
 
             // Set up realtime subscription
-            const channel = supabase
+            const channel = sb
                 .channel("credits_changes")
                 .on(
                     "postgres_changes",
@@ -226,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .subscribe();
 
             return () => {
-                supabase.removeChannel(channel);
+                sb.removeChannel(channel);
             };
         }
     }, [userId, refreshCredits, fetchUserStatus]);
@@ -245,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 userId,
                 setUserId,
                 isAdmin,
+                setIsAdmin,
                 pricing,
                 clearApiKey,
                 logout,
