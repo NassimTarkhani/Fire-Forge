@@ -147,8 +147,8 @@ export default function AdminUsersPage() {
                                         </TableRow>
                                     ) : (
                                         users.map((user) => (
-                                            <TableRow key={user.id || user.user_id} className="border-rose-900/30 hover:bg-rose-950/10 transition-colors">
-                                                <TableCell className="font-medium text-slate-200">{user.name}</TableCell>
+                                            <TableRow key={user.id} className="border-rose-900/30 hover:bg-rose-950/10 transition-colors">
+                                                <TableCell className="font-medium text-slate-200">{user.name || "Unknown"}</TableCell>
                                                 <TableCell>{user.email}</TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">

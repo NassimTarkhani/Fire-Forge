@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FireForgeAPI } from "@/lib/api/client";
+import { AdminPaymentRecord, FireForgeAPI } from "@/lib/api/client";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function AdminPaymentsPage() {
     const { adminKey } = useAuth();
-    const [payments, setPayments] = useState<any[]>([]);
+    const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -24,8 +24,8 @@ export default function AdminPaymentsPage() {
         try {
             const api = new FireForgeAPI(undefined, adminKey || "");
             const res = await api.getAdminPayments();
-            setPayments(Array.isArray(res) ? res : res.payments || []);
-        } catch (error: any) {
+            setPayments(res);
+        } catch (error: unknown) {
             toast.error("Failed to fetch payments");
             // Fallback data if endpoint is not fully ready
             if (!payments.length) {
@@ -85,7 +85,7 @@ export default function AdminPaymentsPage() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-semibold text-slate-200">${(p.amount / 100).toFixed(2)}</span>
-                                                        <span className="text-xs text-slate-500">➔ {p.credits_added} cr</span>
+                                                        <span className="text-xs text-slate-500">{"-> "}{p.credits_granted ?? 0} cr</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -98,7 +98,7 @@ export default function AdminPaymentsPage() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right text-slate-400 text-sm">
-                                                    {new Date(p.created_at).toLocaleString()}
+                                                    {new Date(p.created_at || Date.now()).toLocaleString()}
                                                 </TableCell>
                                             </TableRow>
                                         ))
