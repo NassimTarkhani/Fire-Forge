@@ -73,12 +73,6 @@ export function PlaygroundSidebar() {
                     </div>
                 )}
 
-                {!hasApiKey && hasSession && (
-                    <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-sm text-blue-600 dark:text-blue-400">
-                        You are logged in. Requests can run with your session token. Generate an API key from My Account if you need one for external tools.
-                    </div>
-                )}
-
                 <div className="space-y-6">
                     {playgroundLinks.map((section, i) => (
                         <div key={i} className="space-y-3">

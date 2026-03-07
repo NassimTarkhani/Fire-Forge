@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
+def is_api_key_token(token: Optional[str]) -> bool:
+    """Return True for supported API key formats (current + legacy)."""
+    if not token:
+        return False
+    return token.startswith("fg_") or token.startswith("fireforge_")
+
+
 async def validate_api_key(
     request: Request,
     credentials: HTTPAuthorizationCredentials
@@ -35,7 +42,7 @@ async def validate_api_key(
     """
     api_key = credentials.credentials
     
-    if not api_key or not api_key.startswith("fg_"):
+    if not is_api_key_token(api_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key format"
@@ -75,7 +82,7 @@ async def validate_request_auth(
     """
     token = credentials.credentials
 
-    if token and token.startswith("fg_"):
+    if is_api_key_token(token):
         user_id, api_key_id = await validate_api_key(request, credentials)
         return user_id, api_key_id
 
@@ -118,7 +125,7 @@ async def validate_admin_key(
         return True
     
     # Check if it's a regular API key with admin privileges
-    if api_key.startswith("fg_"):
+    if is_api_key_token(api_key):
         from starlette.concurrency import run_in_threadpool
         supabase: SupabaseService = request.app.state.supabase
         result = await run_in_threadpool(verify_api_key, supabase, api_key)

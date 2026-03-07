@@ -5,8 +5,9 @@ import { useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Flame, Coins, Key, LogOut } from "lucide-react";
+import { Flame, Coins, Key, LogOut, Settings } from "lucide-react";
 import { RegisterDialog } from "@/components/auth/RegisterDialog";
+import { ApiKeyManagerDialog } from "@/components/auth/ApiKeyManagerDialog";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
     DropdownMenu,
@@ -24,6 +25,7 @@ export function Navbar() {
     const hasSession = !!authToken;
     const hasAccount = hasApiKey || hasSession;
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+    const [isApiManagerOpen, setIsApiManagerOpen] = useState(false);
 
     const handleClearApiKey = () => {
         clearApiKey();
@@ -101,6 +103,12 @@ export function Navbar() {
                                         </DropdownMenuItem>
                                     )}
                                     <DropdownMenuSeparator />
+                                    {hasSession && (
+                                        <DropdownMenuItem onClick={() => setIsApiManagerOpen(true)}>
+                                            <Settings className="mr-2 h-4 w-4" />
+                                            Manage API Keys
+                                        </DropdownMenuItem>
+                                    )}
                                     {hasApiKey && (
                                         <DropdownMenuItem onClick={handleClearApiKey}>
                                             <Key className="mr-2 h-4 w-4" />
@@ -127,6 +135,7 @@ export function Navbar() {
             </div>
 
             <RegisterDialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen} />
+            <ApiKeyManagerDialog open={isApiManagerOpen} onOpenChange={setIsApiManagerOpen} />
         </header>
     );
 }
