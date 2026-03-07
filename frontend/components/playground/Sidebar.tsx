@@ -58,17 +58,24 @@ const playgroundLinks = [
 
 export function PlaygroundSidebar() {
     const pathname = usePathname();
-    const { apiKey } = useAuth();
+    const { apiKey, authToken } = useAuth();
     const hasApiKey = !!apiKey;
+    const hasSession = !!authToken;
 
     return (
         <div className="w-64 border-r bg-muted/20 h-[calc(100vh-4rem)] flex-shrink-0">
             <ScrollArea className="h-full py-6 pr-4 pl-6">
                 <h2 className="font-semibold text-lg tracking-tight mb-4">API Endpoints</h2>
 
-                {!hasApiKey && (
+                {!hasApiKey && !hasSession && (
                     <div className="mb-6 p-3 bg-orange-500/10 border border-orange-500/20 rounded-md text-sm text-orange-600 dark:text-orange-400">
                         ⚠️ You need an API Key to execute requests. Login or Register in the top right.
+                    </div>
+                )}
+
+                {!hasApiKey && hasSession && (
+                    <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-sm text-blue-600 dark:text-blue-400">
+                        You are logged in. Requests can run with your session token. Generate an API key from My Account if you need one for external tools.
                     </div>
                 )}
 

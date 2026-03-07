@@ -270,7 +270,7 @@ class SupabaseService:
     def log_usage(
         self,
         user_id: UUID,
-        api_key_id: UUID,
+        api_key_id: Optional[UUID],
         endpoint: str,
         credits_used: int,
         status_code: int,
@@ -280,7 +280,7 @@ class SupabaseService:
         """Log API usage."""
         data = {
             "user_id": str(user_id),
-            "api_key_id": str(api_key_id),
+            "api_key_id": str(api_key_id) if api_key_id else None,
             "endpoint": endpoint,
             "request_size": request_size,
             "response_size": response_size,

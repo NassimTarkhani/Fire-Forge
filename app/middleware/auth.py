@@ -63,6 +63,34 @@ async def validate_api_key(
     return user_id, api_key_id
 
 
+async def validate_request_auth(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials
+) -> Tuple[UUID, Optional[UUID]]:
+    """
+    Validate either an API key (fg_) or a user session token (ffu_).
+
+    Returns:
+        Tuple of (user_id, api_key_id_or_none)
+    """
+    token = credentials.credentials
+
+    if token and token.startswith("fg_"):
+        user_id, api_key_id = await validate_api_key(request, credentials)
+        return user_id, api_key_id
+
+    if token and token.startswith("ffu_"):
+        user_id = await validate_user_token(request, credentials)
+        request.state.user_id = user_id
+        request.state.api_key_id = None
+        return user_id, None
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid auth token format"
+    )
+
+
 async def validate_admin_key(
     request: Request,
     credentials: HTTPAuthorizationCredentials

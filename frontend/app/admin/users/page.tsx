@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FireForgeAPI } from "@/lib/api/client";
+import { AdminUserRecord, FireForgeAPI } from "@/lib/api/client";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function AdminUsersPage() {
     const { adminKey } = useAuth();
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<Array<AdminUserRecord & { credits: number }>>([]);
     const [loading, setLoading] = useState(true);
 
     // Create User State
@@ -27,16 +27,39 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [adminKey]);
+
+    const getErrorMessage = (error: unknown, fallback: string) => {
+        if (error instanceof Error && error.message) return error.message;
+        return fallback;
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
             const api = new FireForgeAPI(undefined, adminKey || "");
-            const res = await api.getAdminUsers();
-            setUsers(Array.isArray(res) ? res : res.users || []);
-        } catch (error: any) {
-            toast.error("Failed to fetch users");
+            const userList = await api.getAdminUsers();
+
+            const creditResults = await Promise.all(
+                userList.map(async (user) => {
+                    try {
+                        const balance = await api.getAdminCredits(user.id);
+                        return [user.id, balance.balance] as const;
+                    } catch {
+                        return [user.id, 0] as const;
+                    }
+                })
+            );
+            const creditsByUserId = Object.fromEntries(creditResults);
+
+            const hydratedUsers = userList.map((user) => ({
+                ...user,
+                credits: creditsByUserId[user.id] ?? 0,
+            }));
+
+            setUsers(hydratedUsers);
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to fetch users"));
         } finally {
             setLoading(false);
         }
@@ -50,8 +73,8 @@ export default function AdminUsersPage() {
             toast.success("User created successfully");
             setCreateOpen(false);
             fetchUsers();
-        } catch (error: any) {
-            toast.error("Failed to create user: " + error.message);
+        } catch (error: unknown) {
+            toast.error("Failed to create user: " + getErrorMessage(error, "Unknown error"));
         } finally {
             setCreating(false);
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FireForgeAPI } from "@/lib/api/client";
+import { AdminApiKeyRecord, AdminUserRecord, FireForgeAPI } from "@/lib/api/client";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 
 export default function AdminKeysPage() {
     const { adminKey } = useAuth();
-    const [keys, setKeys] = useState<any[]>([]);
+    const [keys, setKeys] = useState<AdminApiKeyRecord[]>([]);
+    const [usersById, setUsersById] = useState<Record<string, AdminUserRecord>>({});
+    const [creditsByUserId, setCreditsByUserId] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
 
     const [createOpen, setCreateOpen] = useState(false);
@@ -28,16 +30,45 @@ export default function AdminKeysPage() {
 
     useEffect(() => {
         fetchKeys();
-    }, []);
+    }, [adminKey]);
+
+    const getErrorMessage = (error: unknown, fallback: string) => {
+        if (error instanceof Error && error.message) return error.message;
+        return fallback;
+    };
 
     const fetchKeys = async () => {
         setLoading(true);
         try {
             const api = new FireForgeAPI(undefined, adminKey || "");
-            const res = await api.getAdminApiKeys();
-            setKeys(Array.isArray(res) ? res : res.keys || []);
-        } catch (error: any) {
-            toast.error("Failed to fetch API keys");
+            const [apiKeys, users] = await Promise.all([
+                api.getAdminApiKeys(),
+                api.getAdminUsers(),
+            ]);
+
+            setKeys(Array.isArray(apiKeys) ? apiKeys : []);
+
+            const userMap = (Array.isArray(users) ? users : []).reduce<Record<string, AdminUserRecord>>((acc, user) => {
+                acc[user.id] = user;
+                return acc;
+            }, {});
+            setUsersById(userMap);
+
+            const userIds = Array.from(new Set((Array.isArray(apiKeys) ? apiKeys : []).map((k) => k.user_id).filter(Boolean)));
+            const creditResults = await Promise.all(
+                userIds.map(async (id) => {
+                    try {
+                        const balance = await api.getAdminCredits(id);
+                        return [id, balance.balance] as const;
+                    } catch {
+                        return [id, 0] as const;
+                    }
+                })
+            );
+
+            setCreditsByUserId(Object.fromEntries(creditResults));
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to fetch API keys"));
         } finally {
             setLoading(false);
         }
@@ -53,11 +84,11 @@ export default function AdminKeysPage() {
         try {
             const api = new FireForgeAPI(undefined, adminKey || "");
             const res = await api.createAdminApiKey(userId, keyName);
-            setNewKey(res.key);
+            setNewKey(res.api_key);
             toast.success("API key created successfully");
             fetchKeys(); // refresh list behind the modal
-        } catch (error: any) {
-            toast.error("Failed to create key: " + error.message);
+        } catch (error: unknown) {
+            toast.error("Failed to create key: " + getErrorMessage(error, "Unknown error"));
         } finally {
             setCreating(false);
         }
@@ -71,8 +102,8 @@ export default function AdminKeysPage() {
             await api.revokeAdminApiKey(keyId);
             toast.success("API Key Revoked");
             fetchKeys();
-        } catch (error: any) {
-            toast.error("Revoke failed: " + error.message);
+        } catch (error: unknown) {
+            toast.error("Revoke failed: " + getErrorMessage(error, "Unknown error"));
         }
     };
 
@@ -176,7 +207,8 @@ export default function AdminKeysPage() {
                                     <TableRow className="border-rose-900/30">
                                         <TableHead className="text-slate-400">Name</TableHead>
                                         <TableHead className="text-slate-400">Key Identifier</TableHead>
-                                        <TableHead className="text-slate-400">User ID</TableHead>
+                                        <TableHead className="text-slate-400">User</TableHead>
+                                        <TableHead className="text-slate-400">Available Credits</TableHead>
                                         <TableHead className="text-slate-400">Created</TableHead>
                                         <TableHead className="text-right text-slate-400">Revoke</TableHead>
                                     </TableRow>
@@ -184,31 +216,42 @@ export default function AdminKeysPage() {
                                 <TableBody>
                                     {keys.length === 0 ? (
                                         <TableRow className="border-rose-900/30 hover:bg-rose-950/10">
-                                            <TableCell colSpan={5} className="text-center py-6 text-slate-500">No active keys found</TableCell>
+                                            <TableCell colSpan={6} className="text-center py-6 text-slate-500">No active keys found</TableCell>
                                         </TableRow>
                                     ) : (
-                                        keys.map((k) => (
-                                            <TableRow key={k.key_id || k.id} className="border-rose-900/30 hover:bg-rose-950/10 transition-colors">
-                                                <TableCell className="font-medium text-slate-200">{k.name || "Default"}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className="font-mono bg-slate-900/50 border-slate-800 text-slate-400">
-                                                        {k.key_preview || `${(k.key || "fireforge_...").substring(0, 15)}...`}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="font-mono text-xs text-slate-500">{k.user_id}</TableCell>
-                                                <TableCell className="text-slate-400">{new Date(k.created_at || Date.now()).toLocaleDateString()}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleRevoke(k.key_id || k.id)}
-                                                        className="h-8 w-8 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                        keys.map((k) => {
+                                            const owner = usersById[k.user_id];
+                                            const ownerLabel = owner?.name || owner?.email || "Unknown user";
+                                            const credits = creditsByUserId[k.user_id] ?? 0;
+
+                                            return (
+                                                <TableRow key={k.key_id || k.id} className="border-rose-900/30 hover:bg-rose-950/10 transition-colors">
+                                                    <TableCell className="font-medium text-slate-200">{k.name || "Default"}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className="font-mono bg-slate-900/50 border-slate-800 text-slate-400">
+                                                            {k.key_preview || `${(k.key || "fireforge_...").substring(0, 15)}...`}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-300">{ownerLabel}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
+                                                            {credits}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-400">{new Date(k.created_at || Date.now()).toLocaleDateString()}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleRevoke(k.key_id || k.id)}
+                                                            className="h-8 w-8 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>

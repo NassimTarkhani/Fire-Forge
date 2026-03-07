@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Flame, Coins, Key, LogOut } from "lucide-react";
-import { RegisterDialog } from "../auth/RegisterDialog";
+import { RegisterDialog } from "@/components/auth/RegisterDialog";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
     DropdownMenu,
@@ -19,12 +19,19 @@ import {
 import { toast } from "sonner";
 
 export function Navbar() {
-    const { apiKey, credits, isAdmin, logout } = useAuth();
+    const { apiKey, authToken, credits, isAdmin, clearApiKey, logout } = useAuth();
     const hasApiKey = !!apiKey;
+    const hasSession = !!authToken;
+    const hasAccount = hasApiKey || hasSession;
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-    const handleLogout = () => {
-        logout();
+    const handleClearApiKey = () => {
+        clearApiKey();
+        toast.success("API key cleared");
+    };
+
+    const handleLogout = async () => {
+        await logout();
         toast.success("Logged out successfully");
     };
 
@@ -59,7 +66,7 @@ export function Navbar() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {hasApiKey ? (
+                    {hasAccount ? (
                         <>
                             {credits !== null ? (
                                 <Badge variant="secondary" className="hidden sm:flex items-center gap-1.5 px-3 py-1 font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 border-orange-500/20">
@@ -94,10 +101,18 @@ export function Navbar() {
                                         </DropdownMenuItem>
                                     )}
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
-                                        <LogOut className="mr-2 h-4 w-4" />
-                                        Clear API Key
-                                    </DropdownMenuItem>
+                                    {hasApiKey && (
+                                        <DropdownMenuItem onClick={handleClearApiKey}>
+                                            <Key className="mr-2 h-4 w-4" />
+                                            Clear API Key
+                                        </DropdownMenuItem>
+                                    )}
+                                    {hasSession && (
+                                        <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
+                                            <LogOut className="mr-2 h-4 w-4" />
+                                            Logout
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </>

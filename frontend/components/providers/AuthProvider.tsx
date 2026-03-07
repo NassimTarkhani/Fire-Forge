@@ -2,10 +2,18 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { FireForgeAPI, STORAGE_KEYS } from "@/lib/api/client";
+
+type PricingRow = {
+    endpoint: string;
+    cost: number;
+};
 
 interface AuthContextType {
     apiKey: string | null;
     setApiKey: (key: string | null) => void;
+    authToken: string | null;
+    setAuthToken: (token: string | null) => void;
     adminKey: string | null;
     setAdminKey: (key: string | null) => void;
     credits: number | null;
@@ -14,7 +22,8 @@ interface AuthContextType {
     setUserId: (id: string | null) => void;
     isAdmin: boolean;
     pricing: Record<string, number>;
-    logout: () => void;
+    clearApiKey: () => void;
+    logout: () => Promise<void>;
     adminLogout: () => void;
     deductCredits: (amount: number) => void;
     refreshCredits: () => Promise<void>;
@@ -25,23 +34,101 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [apiKey, setApiKey] = useState<string | null>(null);
+    const [authToken, setAuthToken] = useState<string | null>(null);
     const [adminKey, setAdminKey] = useState<string | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState<boolean>(false);
     const [pricing, setPricing] = useState<Record<string, number>>({});
 
-    const logout = () => {
+    const clearApiKey = () => {
         setApiKey(null);
+        if (typeof window !== "undefined") {
+            localStorage.removeItem(STORAGE_KEYS.API_KEY);
+        }
+    };
+
+    const logout = async () => {
+        if (authToken) {
+            try {
+                const api = new FireForgeAPI(apiKey || undefined, undefined, authToken);
+                await api.logoutUser();
+            } catch {
+                // Ignore logout transport errors and clear local state anyway.
+            }
+        }
+
+        setApiKey(null);
+        setAuthToken(null);
         setCredits(null);
         setUserId(null);
         setIsAdmin(false);
-        // We keep pricing as it's global
+
+        if (typeof window !== "undefined") {
+            localStorage.removeItem(STORAGE_KEYS.API_KEY);
+            localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+            localStorage.removeItem(STORAGE_KEYS.USER_ID);
+            localStorage.removeItem(STORAGE_KEYS.CREDITS);
+        }
     };
 
     const adminLogout = () => {
         setAdminKey(null);
+        if (typeof window !== "undefined") {
+            localStorage.removeItem(STORAGE_KEYS.ADMIN_KEY);
+        }
     };
+
+    // Restore persisted auth state once on mount.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const storedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
+        const storedAuthToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        const storedAdminKey = localStorage.getItem(STORAGE_KEYS.ADMIN_KEY);
+        const storedUserId = localStorage.getItem(STORAGE_KEYS.USER_ID);
+        const storedCredits = localStorage.getItem(STORAGE_KEYS.CREDITS);
+
+        if (storedApiKey) setApiKey(storedApiKey);
+        if (storedAuthToken) setAuthToken(storedAuthToken);
+        if (storedAdminKey) setAdminKey(storedAdminKey);
+        if (storedUserId) setUserId(storedUserId);
+        if (storedCredits !== null && storedCredits !== "") {
+            const parsed = Number(storedCredits);
+            if (!Number.isNaN(parsed)) setCredits(parsed);
+        }
+    }, []);
+
+    // Persist critical auth state changes.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (apiKey) localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
+        else localStorage.removeItem(STORAGE_KEYS.API_KEY);
+    }, [apiKey]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (authToken) localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, authToken);
+        else localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    }, [authToken]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (adminKey) localStorage.setItem(STORAGE_KEYS.ADMIN_KEY, adminKey);
+        else localStorage.removeItem(STORAGE_KEYS.ADMIN_KEY);
+    }, [adminKey]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (userId) localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
+        else localStorage.removeItem(STORAGE_KEYS.USER_ID);
+    }, [userId]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (credits !== null) localStorage.setItem(STORAGE_KEYS.CREDITS, String(credits));
+        else localStorage.removeItem(STORAGE_KEYS.CREDITS);
+    }, [credits]);
 
     const refreshCredits = useCallback(async () => {
         if (!userId) return;
@@ -89,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (error) throw error;
             if (data) {
-                const pricingMap = data.reduce((acc: any, item: any) => {
+                const pricingMap = (data as PricingRow[]).reduce<Record<string, number>>((acc, item) => {
                     acc[item.endpoint] = item.cost;
                     return acc;
                 }, {});
@@ -142,13 +229,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 supabase.removeChannel(channel);
             };
         }
-    }, [userId, refreshCredits]);
+    }, [userId, refreshCredits, fetchUserStatus]);
 
     return (
         <AuthContext.Provider
             value={{
                 apiKey,
                 setApiKey,
+                authToken,
+                setAuthToken,
                 adminKey,
                 setAdminKey,
                 credits,
@@ -157,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUserId,
                 isAdmin,
                 pricing,
+                clearApiKey,
                 logout,
                 adminLogout,
                 deductCredits,

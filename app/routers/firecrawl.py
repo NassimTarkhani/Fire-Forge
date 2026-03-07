@@ -7,7 +7,7 @@ from typing import Any, Dict
 import logging
 import asyncio
 
-from app.middleware.auth import security, validate_api_key
+from app.middleware.auth import security, validate_request_auth
 from app.services.supabase_service import SupabaseService
 from app.services.credit_service import CreditService
 from app.services.firecrawl_proxy import FirecrawlProxy
@@ -45,8 +45,8 @@ async def process_request(
     4. Proxy to Firecrawl
     5. Log usage
     """
-    # Validate API key
-    user_id, api_key_id = await validate_api_key(request, credentials)
+    # Validate API key or authenticated user token
+    user_id, api_key_id = await validate_request_auth(request, credentials)
     
     # Get services
     supabase, credit_service, firecrawl_proxy, rate_limiter = await get_services(request)
