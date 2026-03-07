@@ -9,6 +9,7 @@ import logging
 
 from app.services.supabase_service import SupabaseService
 from app.utils.api_key import verify_api_key
+from app.utils.session_token import hash_session_token
 
 logger = logging.getLogger(__name__)
 
@@ -105,3 +106,39 @@ async def validate_admin_key(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Admin privileges required"
     )
+
+
+async def validate_user_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials
+) -> UUID:
+    """
+    Validate a user auth token and return the associated user_id.
+
+    This is separate from API-key authentication and is used by the
+    email/password auth flow (signup/login/me/logout).
+    """
+    token = credentials.credentials
+
+    if not token or not token.startswith("ffu_"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid auth token format"
+        )
+
+    supabase: SupabaseService = request.app.state.supabase
+    token_hash = hash_session_token(token)
+
+    from starlette.concurrency import run_in_threadpool
+    session = await run_in_threadpool(supabase.get_user_session, token_hash)
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired auth token"
+        )
+
+    user_id = UUID(session["user_id"])
+    request.state.auth_user_id = user_id
+    request.state.auth_token_hash = token_hash
+    return user_id

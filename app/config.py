@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     
     # Admin
     admin_master_key: str  # Master key for admin operations
+
+    # User Auth
+    auth_session_hours: int = 24
     
     # Polar Payments
     polar_access_token: str = ""

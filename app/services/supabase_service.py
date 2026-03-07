@@ -25,7 +25,13 @@ class SupabaseService:
     
     # ===== User Operations =====
     
-    def create_user(self, email: str, name: Optional[str] = None, is_admin: bool = False) -> Dict[str, Any]:
+    def create_user(
+        self,
+        email: str,
+        name: Optional[str] = None,
+        is_admin: bool = False,
+        password_hash: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Create a new user."""
         data = {
             "email": email,
@@ -33,6 +39,8 @@ class SupabaseService:
         }
         if name:
             data["name"] = name
+        if password_hash:
+            data["password_hash"] = password_hash
         response = self.client.table("users").insert(data).execute()
         return response.data[0] if response.data else None
     
@@ -73,6 +81,47 @@ class SupabaseService:
             "id", str(user_id)
         ).execute()
         return response.data[0] if response.data else None
+
+    # ===== User Session Operations =====
+
+    def create_user_session(
+        self,
+        user_id: UUID,
+        token_hash: str,
+        expires_at: datetime
+    ) -> Optional[Dict[str, Any]]:
+        """Create a new authenticated user session."""
+        data = {
+            "user_id": str(user_id),
+            "token_hash": token_hash,
+            "expires_at": expires_at.isoformat(),
+            "revoked": False
+        }
+        response = self.client.table("user_sessions").insert(data).execute()
+        return response.data[0] if response.data else None
+
+    def get_user_session(self, token_hash: str) -> Optional[Dict[str, Any]]:
+        """Get a valid, non-revoked, non-expired user session by token hash."""
+        response = self.client.table("user_sessions").select("*").eq(
+            "token_hash", token_hash
+        ).eq("revoked", False).execute()
+
+        if not response.data:
+            return None
+
+        now_iso = datetime.utcnow().isoformat()
+        for session in response.data:
+            if session.get("expires_at") and session["expires_at"] > now_iso:
+                return session
+
+        return None
+
+    def revoke_user_session(self, token_hash: str) -> bool:
+        """Revoke an authenticated user session by token hash."""
+        response = self.client.table("user_sessions").update(
+            {"revoked": True}
+        ).eq("token_hash", token_hash).execute()
+        return bool(response.data)
     
     # ===== API Key Operations =====
     
@@ -121,6 +170,13 @@ class SupabaseService:
         response = self.client.table("api_keys").update(
             {"revoked": True}
         ).eq("id", str(api_key_id)).execute()
+        return bool(response.data)
+
+    def revoke_api_key_for_user(self, api_key_id: UUID, user_id: UUID) -> bool:
+        """Revoke an API key only if it belongs to the specified user."""
+        response = self.client.table("api_keys").update(
+            {"revoked": True}
+        ).eq("id", str(api_key_id)).eq("user_id", str(user_id)).execute()
         return bool(response.data)
     
     # ===== Credit Operations =====

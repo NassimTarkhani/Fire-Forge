@@ -26,6 +26,11 @@
             "type": "string"
         },
         {
+            "key": "auth_token",
+            "value": "",
+            "type": "string"
+        },
+        {
             "key": "user_id",
             "value": "f6ce58b6-2610-4e7f-9dc0-1b803524f051",
             "type": "string"
@@ -80,21 +85,21 @@
                     "script": {
                         "type": "text/javascript",
                         "exec": [
-                            "// Automatically save API key and user_id from registration response",
+                            "// Automatically save auth token and user_id from registration response",
                             "if (pm.response.code === 201) {",
                             "    var jsonData = pm.response.json();",
-                            "    if (jsonData.api_key) {",
-                            "        pm.collectionVariables.set(\"user_api_key\", jsonData.api_key);",
-                            "        console.log(\"✓ Saved API Key: \" + jsonData.api_key);",
+                            "    if (jsonData.access_token) {",
+                            "        pm.collectionVariables.set(\"auth_token\", jsonData.access_token);",
+                            "        console.log(\"✓ Saved auth token\");",
                             "    }",
-                            "    if (jsonData.user_id) {",
-                            "        pm.collectionVariables.set(\"user_id\", jsonData.user_id);",
-                            "        console.log(\"✓ Saved user_id: \" + jsonData.user_id);",
+                            "    if (jsonData.user && jsonData.user.id) {",
+                            "        pm.collectionVariables.set(\"user_id\", jsonData.user.id);",
+                            "        console.log(\"✓ Saved user_id: \" + jsonData.user.id);",
                             "    }",
                             "    if (jsonData.credits) {",
                             "        console.log(\"✓ Free credits granted: \" + jsonData.credits);",
                             "    }",
-                            "    console.log(\"\\n⚡ Registration successful! You can now use the API with your key.\");",
+                            "    console.log(\"\\n⚡ Registration successful! Now create your API key via /auth/api-keys.\");",
                             "}"
                         ]
                     }
@@ -110,7 +115,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\"\n}"
+                    "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\",\n    \"password\": \"StrongPass123!\"\n}"
                 },
                 "url": {
                     "raw": "{{base_url}}/register",
@@ -121,8 +126,235 @@
                         "register"
                     ]
                 },
-                "description": "Register a new user account and receive 50 free credits.\n\n**Note:** The API key is only shown once! Make sure to save it.\n\nResponse includes:\n- user_id: Your unique user ID\n- api_key: Your API key (starts with 'fireforge_')\n- credits: Number of free credits (50)\n- email: Your registered email\n- name: Your name"
+                "description": "Register a new user account with email/password and receive 50 free credits.\n\nResponse includes:\n- access_token (session token)\n- user.id\n- credits\n\nThen call /auth/api-keys to generate your API key."
             }
+        },
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Signup",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.access_token) pm.collectionVariables.set(\"auth_token\", jsonData.access_token);",
+                                    "    if (jsonData.user && jsonData.user.id) pm.collectionVariables.set(\"user_id\", jsonData.user.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"name\": \"New User\",\n  \"password\": \"StrongPass123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/signup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "signup"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.access_token) pm.collectionVariables.set(\"auth_token\", jsonData.access_token);",
+                                    "    if (jsonData.user && jsonData.user.id) pm.collectionVariables.set(\"user_id\", jsonData.user.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"StrongPass123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Me",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create API Key (User)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.id) pm.collectionVariables.set(\"api_key_id\", jsonData.id);",
+                                    "    if (jsonData.api_key) pm.collectionVariables.set(\"user_api_key\", jsonData.api_key);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/api-keys",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "api-keys"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List API Keys (User)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/api-keys?include_revoked=false",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "api-keys"
+                            ],
+                            "query": [
+                                {
+                                    "key": "include_revoked",
+                                    "value": "false"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Revoke API Key (User)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"api_key_id\": \"{{api_key_id}}\"}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/api-keys/revoke",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "api-keys",
+                                "revoke"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "logout"
+                            ]
+                        }
+                    }
+                }
+            ]
         },
         {
             "name": "Admin",

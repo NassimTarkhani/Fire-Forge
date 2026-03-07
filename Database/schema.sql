@@ -9,7 +9,18 @@ CREATE TABLE users (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     email text UNIQUE NOT NULL,
     name text,
+    password_hash text,
     is_admin boolean DEFAULT false,
+    created_at timestamptz DEFAULT now()
+);
+
+-- User Sessions Table (for email/password auth)
+CREATE TABLE user_sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+    token_hash text UNIQUE NOT NULL,
+    expires_at timestamptz NOT NULL,
+    revoked boolean DEFAULT false,
     created_at timestamptz DEFAULT now()
 );
 
@@ -74,6 +85,9 @@ CREATE TABLE payments (
 CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX idx_api_keys_prefix ON api_keys(key_prefix);
 CREATE INDEX idx_api_keys_revoked ON api_keys(revoked);
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_token_hash ON user_sessions(token_hash);
+CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
 CREATE INDEX idx_credits_user_id ON credits(user_id);
 CREATE INDEX idx_usage_logs_user_id ON usage_logs(user_id);
 CREATE INDEX idx_usage_logs_api_key_id ON usage_logs(api_key_id);

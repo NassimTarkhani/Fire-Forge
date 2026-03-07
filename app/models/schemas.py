@@ -15,18 +15,34 @@ class UserCreate(BaseModel):
 
 
 class UserRegister(BaseModel):
-    """Schema for public user registration."""
+    """Schema for public email/password signup."""
     email: EmailStr
     name: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8, max_length=128)
 
 
-class RegistrationResponse(BaseModel):
-    """Response after successful registration."""
-    user_id: UUID
-    api_key: str
-    credits: int
+class UserLogin(BaseModel):
+    """Schema for user login with email/password."""
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class AuthUserResponse(BaseModel):
+    """Authenticated user details."""
+    id: UUID
     email: str
-    name: str
+    name: Optional[str] = None
+    is_admin: bool
+    created_at: datetime
+
+
+class AuthResponse(BaseModel):
+    """Response after successful login/signup."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    credits: int
+    user: AuthUserResponse
 
 
 class UserUpdate(BaseModel):
@@ -63,6 +79,11 @@ class APIKeyWithSecret(BaseModel):
     key_prefix: str
     api_key: str  # Full key, only shown once
     created_at: datetime
+
+
+class UserAPIKeyRevoke(BaseModel):
+    """Revoke request for a user-owned API key."""
+    api_key_id: UUID
 
 
 # Credit Schemas
